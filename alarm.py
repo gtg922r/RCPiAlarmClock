@@ -153,7 +153,7 @@ def main():
             t_start = time.perf_counter()
             updateOLED(oled_device, alarm)
             t_end = time.perf_counter()
-            log.debug("OLED update time: {}" % (t_end-t_start))
+            log.debug("OLED update time: {}".format(t_end-t_start))
             time.sleep(0.1)
 
     except (KeyboardInterrupt, SystemExit):
