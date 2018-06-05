@@ -123,7 +123,7 @@ def updateOLED(oled_device, alarm):
 
 def main():
     print("Setting Up")
-
+    log = rcpy.setupQueueLogger("main", logging.DEBUG)
     alarm = AlarmClock(loggingLevel=logging.DEBUG)
 
     pinA = 4
@@ -150,7 +150,10 @@ def main():
 
     try:
         while True:
+            t_start = time.perf_counter()
             updateOLED(oled_device, alarm)
+            t_end = time.perf_counter()
+            log.debug("OLED update time: {}" % (t_end-t_start))
             time.sleep(0.1)
 
     except (KeyboardInterrupt, SystemExit):
