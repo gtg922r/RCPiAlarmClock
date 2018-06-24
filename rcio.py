@@ -1,12 +1,15 @@
-import rcpy
 import logging
-import RPi.GPIO as GPIO
 import threading
+
+import RPi.GPIO as GPIO
 import queue
+
+import rcpy
 
 
 class RotaryEncoderGPIO:
     '''Read rotary encoder and loop for increments'''
+    ### TODO: Add debounce of button press
     encD = "^"  # In Detent
     encL = "L"  # Left of Detent
     encR = "R"  # Right of Detent
@@ -16,39 +19,48 @@ class RotaryEncoderGPIO:
     def __init__(self,
                  pinA,
                  pinB,
+                 pinBtn=0,
                  increment_callback=None,
                  decrement_callback=None,
                  change_callback=None,
+                 button_callback=None,
                  loggingLevel=logging.WARNING):
 
         self.log = rcpy.setupQueueLogger("RotaryEncoderGPIO", loggingLevel)
 
-        self.pinA = pinA
-        self.pinB = pinB
         self.increment_callback = increment_callback
         self.decrement_callback = decrement_callback
         self.change_callback = change_callback
+        self.button_callback = button_callback
 
         self.invalid_transitions = 0
         self.detent_without_cycle = 0
 
         GPIO.setmode(GPIO.BCM)
+        self.pinA = pinA
+        self.pinB = pinB
         GPIO.setup(self.pinA, GPIO.IN, pull_up_down=GPIO.PUD_UP)
         GPIO.setup(self.pinB, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-        self.processQ = queue.Queue(1000)
-        self.workerThread = threading.Thread(
-            name='Encoder Worker', target=self._workerFunction)
-        self.workerThread.start()
-
         GPIO.add_event_detect(pinA, GPIO.BOTH, callback=self.processChange)
         GPIO.add_event_detect(pinB, GPIO.BOTH, callback=self.processChange)
+
+        if pinBtn != 0:
+            self.log.debug("Settting up button with pin {}...".format(pinBtn))
+            GPIO.setup(pinBtn, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            GPIO.add_event_detect(
+                pinBtn, GPIO.FALLING, callback=self.buttonPress)
 
         (A, B) = self.readEncoder()
         self.lastState = self.encoder_state(A, B)
         self.encCount = 0
         self.invalid = False
 
+        self.processQ = queue.Queue(1000)
+        self.workerThread = threading.Thread(
+            name='Encoder Worker', target=self._workerFunction)
+        self.workerThread.start()
+        
         self.log.debug("Encoder setup complete")
 
     def cleanup(self):
@@ -60,18 +72,14 @@ class RotaryEncoderGPIO:
         B = GPIO.input(self.pinB)
         return (A, B)
 
-#    def processChange(self, channel):
-#        #TODO GET RID OF TIMER
-#        (A, B) = self.readEncoder()
-#        self.processQ.put((A,B), block=False)
-
     def processChange(self, channel):
         val = GPIO.input(channel)
         self.processQ.put((channel, val), block=False)
 
-
-#    def processFallingChange(self, channel):
-#        self.processQ.put((channel, 0), block=False)
+    def buttonPress(self, channel):
+        self.log.info("Button press detected")
+        if self.button_callback:
+            threading.Thread(target=self.button_callback).start()
 
     def encoder_state(self, A, B):
         state = None

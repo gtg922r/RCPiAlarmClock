@@ -4,7 +4,7 @@ import logging.handlers
 
 
 def setupQueueLogger(loggerName, loggingLevel=None):
-    '''Setup queue-based logger that logs to queue, and listener the
+    '''(rpc function) Setup queue-based logger that logs to queue, and listener the
 a streams from queue'''
     que = queue.Queue(-1)  # no limit on size
 
@@ -23,3 +23,5 @@ a streams from queue'''
         log.setLevel(loggingLevel)
 
     return log
+
+
